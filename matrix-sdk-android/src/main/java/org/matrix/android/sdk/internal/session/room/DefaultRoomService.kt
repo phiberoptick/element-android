@@ -20,6 +20,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.Transformations
 import androidx.paging.PagedList
 import com.zhuinden.monarchy.Monarchy
+import org.matrix.android.sdk.api.query.QueryStringValue
 import org.matrix.android.sdk.api.session.events.model.Event
 import org.matrix.android.sdk.api.session.room.Room
 import org.matrix.android.sdk.api.session.room.RoomService
@@ -32,6 +33,7 @@ import org.matrix.android.sdk.api.session.room.model.RoomMemberSummary
 import org.matrix.android.sdk.api.session.room.model.RoomSummary
 import org.matrix.android.sdk.api.session.room.model.create.CreateRoomParams
 import org.matrix.android.sdk.api.session.room.peeking.PeekResult
+import org.matrix.android.sdk.api.session.room.roomSummaryQueryParams
 import org.matrix.android.sdk.api.session.room.summary.RoomAggregateNotificationCount
 import org.matrix.android.sdk.api.util.Optional
 import org.matrix.android.sdk.api.util.toOptional
@@ -50,6 +52,7 @@ import org.matrix.android.sdk.internal.session.room.peeking.PeekRoomTask
 import org.matrix.android.sdk.internal.session.room.peeking.ResolveRoomStateTask
 import org.matrix.android.sdk.internal.session.room.read.MarkAllRoomsReadTask
 import org.matrix.android.sdk.internal.session.room.summary.RoomSummaryDataSource
+import org.matrix.android.sdk.internal.session.room.summary.RoomSummaryUpdater
 import org.matrix.android.sdk.internal.session.user.accountdata.UpdateBreadcrumbsTask
 import org.matrix.android.sdk.internal.util.fetchCopied
 import javax.inject.Inject
@@ -66,7 +69,8 @@ internal class DefaultRoomService @Inject constructor(
         private val peekRoomTask: PeekRoomTask,
         private val roomGetter: RoomGetter,
         private val roomSummaryDataSource: RoomSummaryDataSource,
-        private val roomChangeMembershipStateDataSource: RoomChangeMembershipStateDataSource
+        private val roomChangeMembershipStateDataSource: RoomChangeMembershipStateDataSource,
+        private val roomSummaryUpdater: RoomSummaryUpdater,
 ) : RoomService {
 
     override suspend fun createRoom(createRoomParams: CreateRoomParams): String {
@@ -88,6 +92,23 @@ internal class DefaultRoomService @Inject constructor(
     override fun getRoomSummaries(queryParams: RoomSummaryQueryParams,
                                   sortOrder: RoomSortOrder): List<RoomSummary> {
         return roomSummaryDataSource.getRoomSummaries(queryParams, sortOrder)
+    }
+
+    override fun refreshJoinedRoomSummaryPreviews(roomId: String?) {
+        val roomSummaries = getRoomSummaries(roomSummaryQueryParams {
+            if (roomId != null) {
+                this.roomId = QueryStringValue.Equals(roomId)
+            }
+            memberships = listOf(Membership.JOIN)
+        })
+
+        if (roomSummaries.isNotEmpty()) {
+            monarchy.runTransactionSync { realm ->
+                roomSummaries.forEach {
+                    roomSummaryUpdater.refreshLatestPreviewContent(realm, it.roomId)
+                }
+            }
+        }
     }
 
     override fun getRoomSummariesLive(queryParams: RoomSummaryQueryParams,
