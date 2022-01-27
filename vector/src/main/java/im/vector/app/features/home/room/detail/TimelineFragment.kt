@@ -20,7 +20,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -203,8 +202,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nl.dionsegijn.konfetti.models.Shape
-import nl.dionsegijn.konfetti.models.Size
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.emitter.Emitter
 import org.billcarsonfr.jsonviewer.JSonViewerDialog
 import org.commonmark.parser.Parser
 import org.matrix.android.sdk.api.session.Session
@@ -559,16 +558,21 @@ class TimelineFragment @Inject constructor(
         when (chatEffect) {
             ChatEffect.CONFETTI -> {
                 views.viewKonfetti.isVisible = true
-                views.viewKonfetti.build()
-                        .addColors(Color.YELLOW, Color.GREEN, Color.MAGENTA)
-                        .setDirection(0.0, 359.0)
-                        .setSpeed(2f, 5f)
-                        .setFadeOutEnabled(true)
-                        .setTimeToLive(2000L)
-                        .addShapes(Shape.Square, Shape.Circle)
-                        .addSizes(Size(12))
-                        .setPosition(-50f, views.viewKonfetti.width + 50f, -50f, -50f)
-                        .streamFor(150, 3000L)
+                val party = Party(
+                        /*
+                        // Keep default setting for now.
+                        colors = listOf(Color.YELLOW, Color.GREEN, Color.MAGENTA),
+                        timeToLive = 2000L,
+                        fadeOutEnabled = true,
+                        speed = 2f,
+                        maxSpeed = 5f,
+                        damping = 0.9f,
+                        spread = 360,
+                        position = Position.Relative(0.5, 0.3),
+                         */
+                        emitter = Emitter(duration = 100).max(100)
+                )
+                views.viewKonfetti.start(party)
             }
             ChatEffect.SNOWFALL -> {
                 views.viewSnowFall.isVisible = true
