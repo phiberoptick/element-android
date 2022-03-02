@@ -43,7 +43,7 @@ sealed interface OnboardingAction : VectorViewModelAction {
     data class LoginOrRegister(val username: String, val password: String, val initialDeviceName: String) : OnboardingAction
     object StopEmailValidationCheck : OnboardingAction
 
-    data class PostRegisterAction(val registerAction: RegisterAction): OnboardingAction
+    data class PostRegisterAction(val registerAction: RegisterAction) : OnboardingAction
 
     // Reset actions
     open class ResetAction : OnboardingAction
