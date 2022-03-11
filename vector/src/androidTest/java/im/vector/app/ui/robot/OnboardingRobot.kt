@@ -21,6 +21,7 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import com.adevinta.android.barista.assertion.BaristaEnabledAssertions.assertDisabled
 import com.adevinta.android.barista.assertion.BaristaEnabledAssertions.assertEnabled
 import com.adevinta.android.barista.assertion.BaristaVisibilityAssertions.assertDisplayed
@@ -29,6 +30,7 @@ import com.adevinta.android.barista.interaction.BaristaEditTextInteractions.writ
 import im.vector.app.R
 import im.vector.app.espresso.tools.waitUntilViewVisible
 import im.vector.app.waitForView
+import kotlinx.coroutines.delay
 
 class OnboardingRobot {
 
@@ -55,6 +57,18 @@ class OnboardingRobot {
 
     fun createAccount(userId: String, password: String = "password", homeServerUrl: String = "http://10.0.2.2:8080") {
         initSession(true, userId, password, homeServerUrl)
+        waitUntilViewVisible(withText(R.string.ftue_account_created_congratulations_title))
+        clickOn(R.string.ftue_account_created_personalize)
+
+        waitUntilViewVisible(withText(R.string.ftue_display_name_title))
+        writeTo(R.id.displayNameInput, "UI automation")
+        clickOn(R.string.ftue_personalize_submit)
+
+        waitUntilViewVisible(withText(R.string.ftue_profile_picture_title))
+        clickOn(R.string.ftue_personalize_skip_this_step)
+
+        waitUntilViewVisible(withText(R.string.ftue_personalize_complete_title))
+        clickOn(R.string.ftue_personalize_lets_go)
     }
 
     fun login(userId: String, password: String = "password", homeServerUrl: String = "http://10.0.2.2:8080") {
