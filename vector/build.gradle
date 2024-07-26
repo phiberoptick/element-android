@@ -124,7 +124,7 @@ dependencies {
     implementation libs.androidx.constraintLayout
     implementation libs.androidx.core
     implementation "androidx.media:media:1.6.0"
-    implementation "androidx.transition:transition:1.4.1"
+    implementation "androidx.transition:transition:1.5.1"
     implementation libs.androidx.biometric
 
     api "org.threeten:threetenbp:1.4.0:no-tzdb"
