@@ -27,7 +27,8 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.junit.Before
 import org.junit.Test
 import org.matrix.android.sdk.BuildConfig
-import java.lang.Exception
+import org.matrix.android.sdk.api.util.getApplicationInfoCompat
+import org.matrix.android.sdk.api.util.getPackageInfoCompat
 
 private const val A_PACKAGE_NAME = "org.matrix.sdk"
 private const val AN_APP_NAME = "Element"
@@ -49,8 +50,8 @@ class ComputeUserAgentUseCaseTest {
         every { context.applicationContext } returns context
         every { context.packageName } returns A_PACKAGE_NAME
         every { context.packageManager } returns packageManager
-        every { packageManager.getApplicationInfo(any(), any()) } returns applicationInfo
-        every { packageManager.getPackageInfo(any<String>(), any()) } returns packageInfo
+        every { packageManager.getApplicationInfoCompat(any(), any()) } returns applicationInfo
+        every { packageManager.getPackageInfoCompat(any(), any()) } returns packageInfo
     }
 
     @Test

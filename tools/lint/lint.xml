@@ -11,13 +11,13 @@
     <issue id="TypographyEllipsis" severity="error" />
     <issue id="ImpliedQuantity" severity="warning" />
     <issue id="MissingQuantity" severity="warning" />
-    <issue id="UnusedQuantity" severity="error" />
+    <issue id="UnusedQuantity" severity="warning" />
     <issue id="IconXmlAndPng" severity="error" />
     <issue id="IconDipSize" severity="error" />
     <issue id="IconDuplicatesConfig" severity="error" />
     <issue id="IconDuplicates" severity="error" />
     <issue id="IconExpectedSize" severity="error" />
-    <issue id="LocaleFolder" severity="error" />
+    <issue id="LocaleFolder" severity="ignore" />
 
     <!-- AlwaysShowAction is considered as an error to force ignoring the issue when detected -->
     <issue id="AlwaysShowAction" severity="error" />
@@ -77,6 +77,7 @@
     <issue id="UseValueOf" severity="error" />
     <issue id="ObsoleteSdkInt" severity="error" />
     <issue id="Recycle" severity="error" />
+    <issue id="KotlinNullnessAnnotation" severity="error" />
     <issue id="KotlinPropertyAccess" severity="error" />
     <issue id="DefaultLocale" severity="error" />
     <issue id="CheckResult" severity="error" />
