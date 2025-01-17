@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.settings.devices.v2.signout
@@ -24,8 +15,8 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.runs
 import io.mockk.unmockkAll
+import org.amshove.kluent.shouldBe
 import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeInstanceOf
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -63,7 +54,7 @@ class InterceptSignoutFlowResponseUseCaseTest {
     }
 
     @Test
-    fun `given no error and a stored password and a next stage as password when intercepting then promise is resumed and success is returned`() {
+    fun `given no error and a stored password and a next stage as password when intercepting then promise is resumed and null is returned`() {
         // Given
         val registrationFlowResponse = givenNextUncompletedStage(LoginFlowTypes.PASSWORD, A_SESSION_ID)
         fakeReAuthHelper.givenStoredPassword(A_PASSWORD)
@@ -84,7 +75,7 @@ class InterceptSignoutFlowResponseUseCaseTest {
         )
 
         // Then
-        result shouldBeInstanceOf (SignoutSessionResult.Completed::class)
+        result shouldBe null
         every {
             promise.resume(expectedAuth)
         }
@@ -97,7 +88,7 @@ class InterceptSignoutFlowResponseUseCaseTest {
         fakeReAuthHelper.givenStoredPassword(A_PASSWORD)
         val errorCode = AN_ERROR_CODE
         val promise = mockk<Continuation<UIABaseAuth>>()
-        val expectedResult = SignoutSessionResult.ReAuthNeeded(
+        val expectedResult = SignoutSessionsReAuthNeeded(
                 pendingAuth = DefaultBaseAuth(session = A_SESSION_ID),
                 uiaContinuation = promise,
                 flowResponse = registrationFlowResponse,
@@ -122,7 +113,7 @@ class InterceptSignoutFlowResponseUseCaseTest {
         fakeReAuthHelper.givenStoredPassword(A_PASSWORD)
         val errorCode: String? = null
         val promise = mockk<Continuation<UIABaseAuth>>()
-        val expectedResult = SignoutSessionResult.ReAuthNeeded(
+        val expectedResult = SignoutSessionsReAuthNeeded(
                 pendingAuth = DefaultBaseAuth(session = A_SESSION_ID),
                 uiaContinuation = promise,
                 flowResponse = registrationFlowResponse,
@@ -147,7 +138,7 @@ class InterceptSignoutFlowResponseUseCaseTest {
         fakeReAuthHelper.givenStoredPassword(null)
         val errorCode: String? = null
         val promise = mockk<Continuation<UIABaseAuth>>()
-        val expectedResult = SignoutSessionResult.ReAuthNeeded(
+        val expectedResult = SignoutSessionsReAuthNeeded(
                 pendingAuth = DefaultBaseAuth(session = A_SESSION_ID),
                 uiaContinuation = promise,
                 flowResponse = registrationFlowResponse,

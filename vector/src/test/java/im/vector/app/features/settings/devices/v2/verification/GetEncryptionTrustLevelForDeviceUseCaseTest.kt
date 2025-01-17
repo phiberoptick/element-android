@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.settings.devices.v2.verification
@@ -19,6 +10,7 @@ package im.vector.app.features.settings.devices.v2.verification
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.amshove.kluent.shouldBe
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.Test
 import org.matrix.android.sdk.api.session.crypto.crosssigning.DeviceTrustLevel
@@ -87,6 +79,20 @@ class GetEncryptionTrustLevelForDeviceUseCaseTest {
                     deviceTrustLevel = cryptoDeviceInfo.trustLevel
             )
         }
+    }
+
+    @Test
+    fun `given no crypto device info when computing trust level then result is null`() {
+        val currentSessionCrossSigningInfo = givenCurrentSessionCrossSigningInfo(
+                deviceId = A_DEVICE_ID,
+                isCrossSigningInitialized = true,
+                isCrossSigningVerified = false
+        )
+        val cryptoDeviceInfo = null
+
+        val result = getEncryptionTrustLevelForDeviceUseCase.execute(currentSessionCrossSigningInfo, cryptoDeviceInfo)
+
+        result shouldBe null
     }
 
     private fun givenCurrentSessionCrossSigningInfo(

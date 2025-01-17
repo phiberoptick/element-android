@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package org.billcarsonfr.jsonviewer
@@ -28,6 +19,7 @@ import com.airbnb.mvrx.Mavericks
 import com.airbnb.mvrx.MavericksView
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
+import im.vector.lib.core.utils.compat.getParcelableCompat
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
@@ -53,7 +45,7 @@ class JSonViewerFragment : Fragment(), MavericksView {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-        val args: JSonViewerFragmentArgs? = arguments?.getParcelable(Mavericks.KEY_ARG)
+        val args: JSonViewerFragmentArgs? = arguments?.getParcelableCompat(Mavericks.KEY_ARG)
         val inflate =
                 if (args?.wrap == true) {
                     inflater.inflate(R.layout.fragment_jv_recycler_view_wrap, container, false)

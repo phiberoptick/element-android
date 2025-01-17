@@ -1,17 +1,8 @@
 /*
- * Copyright 2019 New Vector Ltd
+ * Copyright 2019-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.media
@@ -94,7 +85,7 @@ class ImageContentRenderer @Inject constructor(
     fun render(previewUrlData: PreviewUrlData, imageView: ImageView): Boolean {
         val contentUrlResolver = activeSessionHolder.getActiveSession().contentUrlResolver()
         val imageUrl = contentUrlResolver.resolveFullSize(previewUrlData.mxcUrl) ?: return false
-        val maxHeight = dimensionConverter.resources.getDimensionPixelSize(R.dimen.preview_url_view_image_max_height)
+        val maxHeight = dimensionConverter.resources.getDimensionPixelSize(im.vector.lib.ui.styles.R.dimen.preview_url_view_image_max_height)
         val height = previewUrlData.imageHeight ?: URL_PREVIEW_IMAGE_MIN_FULL_HEIGHT_PX
         val width = previewUrlData.imageWidth ?: URL_PREVIEW_IMAGE_MIN_FULL_WIDTH_PX
         if (height < URL_PREVIEW_IMAGE_MIN_FULL_HEIGHT_PX || width < URL_PREVIEW_IMAGE_MIN_FULL_WIDTH_PX) {
@@ -135,7 +126,7 @@ class ImageContentRenderer @Inject constructor(
                     if (mode == Mode.ANIMATED_THUMBNAIL) it
                     else it.dontAnimate()
                 }
-                .transform(cornerTransformation)
+                .optionalTransform(cornerTransformation)
                 .into(imageView)
     }
 
@@ -167,7 +158,7 @@ class ImageContentRenderer @Inject constructor(
         }
 
         req
-                .fitCenter()
+                .optionalFitCenter()
                 .into(target)
     }
 
@@ -193,7 +184,7 @@ class ImageContentRenderer @Inject constructor(
             override fun onLoadFailed(
                     e: GlideException?,
                     model: Any?,
-                    target: Target<Drawable>?,
+                    target: Target<Drawable>,
                     isFirstResource: Boolean
             ): Boolean {
                 callback?.invoke(false)
@@ -201,17 +192,17 @@ class ImageContentRenderer @Inject constructor(
             }
 
             override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
+                    resource: Drawable,
+                    model: Any,
                     target: Target<Drawable>?,
-                    dataSource: DataSource?,
+                    dataSource: DataSource,
                     isFirstResource: Boolean
             ): Boolean {
                 callback?.invoke(true)
                 return false
             }
         })
-                .fitCenter()
+                .optionalFitCenter()
                 .into(imageView)
     }
 

@@ -1,26 +1,19 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.settings.devices.v2.overview
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asFlow
-import im.vector.app.features.settings.devices.v2.DeviceExtendedInfo
+import im.vector.app.core.session.clientinfo.GetMatrixClientInfoUseCase
+import im.vector.app.core.session.clientinfo.MatrixClientInfoContent
 import im.vector.app.features.settings.devices.v2.DeviceFullInfo
 import im.vector.app.features.settings.devices.v2.ParseDeviceUserAgentUseCase
+import im.vector.app.features.settings.devices.v2.details.extended.DeviceExtendedInfo
 import im.vector.app.features.settings.devices.v2.list.CheckIfSessionIsInactiveUseCase
 import im.vector.app.features.settings.devices.v2.list.DeviceType
 import im.vector.app.features.settings.devices.v2.verification.CurrentSessionCrossSigningInfo
@@ -57,6 +50,7 @@ class GetDeviceFullInfoUseCaseTest {
     private val checkIfSessionIsInactiveUseCase = mockk<CheckIfSessionIsInactiveUseCase>()
     private val fakeFlowLiveDataConversions = FakeFlowLiveDataConversions()
     private val parseDeviceUserAgentUseCase = mockk<ParseDeviceUserAgentUseCase>()
+    private val getMatrixClientInfoUseCase = mockk<GetMatrixClientInfoUseCase>()
 
     private val getDeviceFullInfoUseCase = GetDeviceFullInfoUseCase(
             activeSessionHolder = fakeActiveSessionHolder.instance,
@@ -64,6 +58,7 @@ class GetDeviceFullInfoUseCaseTest {
             getEncryptionTrustLevelForDeviceUseCase = getEncryptionTrustLevelForDeviceUseCase,
             checkIfSessionIsInactiveUseCase = checkIfSessionIsInactiveUseCase,
             parseDeviceUserAgentUseCase = parseDeviceUserAgentUseCase,
+            getMatrixClientInfoUseCase = getMatrixClientInfoUseCase,
     )
 
     @Before
@@ -80,19 +75,14 @@ class GetDeviceFullInfoUseCaseTest {
     fun `given current session and info for device when getting device info then the result is correct`() = runTest {
         // Given
         val currentSessionCrossSigningInfo = givenCurrentSessionCrossSigningInfo()
-        val deviceInfo = DeviceInfo(
-                lastSeenTs = A_TIMESTAMP,
-        )
-        fakeActiveSessionHolder.fakeSession.fakeCryptoService.myDevicesInfoWithIdLiveData = MutableLiveData(Optional(deviceInfo))
-        fakeActiveSessionHolder.fakeSession.fakeCryptoService.myDevicesInfoWithIdLiveData.givenAsFlow()
-        val cryptoDeviceInfo = CryptoDeviceInfo(deviceId = A_DEVICE_ID, userId = "")
-        fakeActiveSessionHolder.fakeSession.fakeCryptoService.cryptoDeviceInfoWithIdLiveData = MutableLiveData(Optional(cryptoDeviceInfo))
-        fakeActiveSessionHolder.fakeSession.fakeCryptoService.cryptoDeviceInfoWithIdLiveData.givenAsFlow()
+        val deviceInfo = givenADeviceInfo()
+        val cryptoDeviceInfo = givenACryptoDeviceInfo()
         val trustLevel = givenTrustLevel(currentSessionCrossSigningInfo, cryptoDeviceInfo)
         val isInactive = false
         val isCurrentDevice = true
         every { checkIfSessionIsInactiveUseCase.execute(any()) } returns isInactive
         every { parseDeviceUserAgentUseCase.execute(any()) } returns DeviceExtendedInfo(DeviceType.MOBILE)
+        val matrixClientInfo = givenAMatrixClientInfo()
 
         // When
         val deviceFullInfo = getDeviceFullInfoUseCase.execute(A_DEVICE_ID).firstOrNull()
@@ -104,14 +94,57 @@ class GetDeviceFullInfoUseCaseTest {
                 roomEncryptionTrustLevel = trustLevel,
                 isInactive = isInactive,
                 isCurrentDevice = isCurrentDevice,
-                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE)
+                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE),
+                matrixClientInfo = matrixClientInfo,
         )
-        verify { fakeActiveSessionHolder.instance.getSafeActiveSession() }
-        verify { getCurrentSessionCrossSigningInfoUseCase.execute() }
-        verify { getEncryptionTrustLevelForDeviceUseCase.execute(currentSessionCrossSigningInfo, cryptoDeviceInfo) }
-        verify { fakeActiveSessionHolder.fakeSession.fakeCryptoService.getMyDevicesInfoLive(A_DEVICE_ID).asFlow() }
-        verify { fakeActiveSessionHolder.fakeSession.fakeCryptoService.getLiveCryptoDeviceInfoWithId(A_DEVICE_ID).asFlow() }
-        verify { checkIfSessionIsInactiveUseCase.execute(A_TIMESTAMP) }
+        verify {
+            fakeActiveSessionHolder.instance.getSafeActiveSession()
+            getCurrentSessionCrossSigningInfoUseCase.execute()
+            getEncryptionTrustLevelForDeviceUseCase.execute(currentSessionCrossSigningInfo, cryptoDeviceInfo)
+            fakeActiveSessionHolder.fakeSession.fakeCryptoService.getMyDevicesInfoLive(A_DEVICE_ID).asFlow()
+            fakeActiveSessionHolder.fakeSession.fakeCryptoService.getLiveCryptoDeviceInfoWithId(A_DEVICE_ID).asFlow()
+            checkIfSessionIsInactiveUseCase.execute(A_TIMESTAMP)
+            getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, A_DEVICE_ID)
+        }
+    }
+
+    @Test
+    fun `given current session and no crypto info for device when getting device info then the result is correct`() = runTest {
+        // Given
+        val currentSessionCrossSigningInfo = givenCurrentSessionCrossSigningInfo()
+        val deviceInfo = givenADeviceInfo()
+        val cryptoDeviceInfo = null
+        val trustLevel = givenTrustLevel(currentSessionCrossSigningInfo, cryptoDeviceInfo)
+        val isInactive = false
+        val isCurrentDevice = true
+        every { checkIfSessionIsInactiveUseCase.execute(any()) } returns isInactive
+        every { parseDeviceUserAgentUseCase.execute(any()) } returns DeviceExtendedInfo(DeviceType.MOBILE)
+        val matrixClientInfo = givenAMatrixClientInfo()
+        fakeActiveSessionHolder.fakeSession.fakeCryptoService.cryptoDeviceInfoWithIdLiveData = MutableLiveData(Optional(null))
+        fakeActiveSessionHolder.fakeSession.fakeCryptoService.cryptoDeviceInfoWithIdLiveData.givenAsFlow()
+
+        // When
+        val deviceFullInfo = getDeviceFullInfoUseCase.execute(A_DEVICE_ID).firstOrNull()
+
+        // Then
+        deviceFullInfo shouldBeEqualTo DeviceFullInfo(
+                deviceInfo = deviceInfo,
+                cryptoDeviceInfo = cryptoDeviceInfo,
+                roomEncryptionTrustLevel = trustLevel,
+                isInactive = isInactive,
+                isCurrentDevice = isCurrentDevice,
+                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE),
+                matrixClientInfo = matrixClientInfo,
+        )
+        verify {
+            fakeActiveSessionHolder.instance.getSafeActiveSession()
+            getCurrentSessionCrossSigningInfoUseCase.execute()
+            getEncryptionTrustLevelForDeviceUseCase.execute(currentSessionCrossSigningInfo, cryptoDeviceInfo)
+            fakeActiveSessionHolder.fakeSession.fakeCryptoService.getMyDevicesInfoLive(A_DEVICE_ID).asFlow()
+            fakeActiveSessionHolder.fakeSession.fakeCryptoService.getLiveCryptoDeviceInfoWithId(A_DEVICE_ID).asFlow()
+            checkIfSessionIsInactiveUseCase.execute(A_TIMESTAMP)
+            getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, A_DEVICE_ID)
+        }
     }
 
     @Test
@@ -128,9 +161,11 @@ class GetDeviceFullInfoUseCaseTest {
 
         // Then
         deviceFullInfo.shouldBeNull()
-        verify { fakeActiveSessionHolder.instance.getSafeActiveSession() }
-        verify { fakeActiveSessionHolder.fakeSession.fakeCryptoService.getMyDevicesInfoLive(A_DEVICE_ID).asFlow() }
-        verify { fakeActiveSessionHolder.fakeSession.fakeCryptoService.getLiveCryptoDeviceInfoWithId(A_DEVICE_ID).asFlow() }
+        verify {
+            fakeActiveSessionHolder.instance.getSafeActiveSession()
+            fakeActiveSessionHolder.fakeSession.fakeCryptoService.getMyDevicesInfoLive(A_DEVICE_ID).asFlow()
+            fakeActiveSessionHolder.fakeSession.fakeCryptoService.getLiveCryptoDeviceInfoWithId(A_DEVICE_ID).asFlow()
+        }
     }
 
     @Test
@@ -160,5 +195,28 @@ class GetDeviceFullInfoUseCaseTest {
         val trustLevel = RoomEncryptionTrustLevel.Trusted
         every { getEncryptionTrustLevelForDeviceUseCase.execute(currentSessionCrossSigningInfo, cryptoDeviceInfo) } returns trustLevel
         return trustLevel
+    }
+
+    private fun givenADeviceInfo(): DeviceInfo {
+        val deviceInfo = DeviceInfo(
+                deviceId = A_DEVICE_ID,
+                lastSeenTs = A_TIMESTAMP,
+        )
+        fakeActiveSessionHolder.fakeSession.fakeCryptoService.myDevicesInfoWithIdLiveData = MutableLiveData(Optional(deviceInfo))
+        fakeActiveSessionHolder.fakeSession.fakeCryptoService.myDevicesInfoWithIdLiveData.givenAsFlow()
+        return deviceInfo
+    }
+
+    private fun givenACryptoDeviceInfo(): CryptoDeviceInfo {
+        val cryptoDeviceInfo = CryptoDeviceInfo(deviceId = A_DEVICE_ID, userId = "")
+        fakeActiveSessionHolder.fakeSession.fakeCryptoService.cryptoDeviceInfoWithIdLiveData = MutableLiveData(Optional(cryptoDeviceInfo))
+        fakeActiveSessionHolder.fakeSession.fakeCryptoService.cryptoDeviceInfoWithIdLiveData.givenAsFlow()
+        return cryptoDeviceInfo
+    }
+
+    private fun givenAMatrixClientInfo(): MatrixClientInfoContent {
+        val matrixClientInfo = mockk<MatrixClientInfoContent>()
+        every { getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, A_DEVICE_ID) } returns matrixClientInfo
+        return matrixClientInfo
     }
 }

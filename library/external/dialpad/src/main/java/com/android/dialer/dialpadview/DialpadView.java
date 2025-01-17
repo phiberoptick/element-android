@@ -1,17 +1,9 @@
 /*
- * Copyright (C) 2014 The Android Open Source Project
+ * Copyright 2024 New Vector Ltd.
+ * Copyright 2014 The Android Open Source Project
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package com.android.dialer.dialpadview;
@@ -20,7 +12,6 @@ import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.text.Spannable;
 import android.text.TextUtils;
@@ -103,6 +94,7 @@ public class DialpadView extends LinearLayout {
 
   @Override
   protected void onFinishInflate() {
+    super.onFinishInflate();
     setupKeypad();
     mDigits = (EditText) findViewById(R.id.digits);
     mDelete = (ImageButton) findViewById(R.id.deleteButton);
@@ -199,14 +191,6 @@ public class DialpadView extends LinearLayout {
 
     final DialpadKeyButton zero = (DialpadKeyButton) findViewById(R.id.zero);
     zero.setLongHoverContentDescription(resources.getText(R.string.description_image_button_plus));
-  }
-
-  private Drawable getDrawableCompat(Context context, int id) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      return context.getDrawable(id);
-    } else {
-      return context.getResources().getDrawable(id);
-    }
   }
 
   public void setShowVoicemailButton(boolean show) {

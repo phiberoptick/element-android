@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2020 New Vector Ltd
+ * Copyright 2020-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.ui
@@ -23,14 +14,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
-import im.vector.app.R
 import im.vector.app.espresso.tools.ScreenshotFailureRule
 import im.vector.app.features.MainActivity
 import im.vector.app.getString
 import im.vector.app.ui.robot.ElementRobot
-import im.vector.app.ui.robot.settings.labs.LabFeature
 import im.vector.app.ui.robot.settings.labs.LabFeaturesPreferences
 import im.vector.app.ui.robot.withDeveloperMode
+import im.vector.lib.strings.CommonStrings
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -56,7 +46,7 @@ class UiAllScreensSanityTest {
                     InstrumentationRegistry.getInstrumentation()
                             .targetContext
                             .resources
-                            .getBoolean(R.bool.settings_labs_new_app_layout_default)
+                            .getBoolean(im.vector.app.config.R.bool.settings_labs_new_app_layout_default)
             )
     )
 
@@ -133,14 +123,26 @@ class UiAllScreensSanityTest {
             }
         }
 
+        // Some instability with the bottomsheet
+        // not sure what's the source, maybe the expanded state?
+        Thread.sleep(10_000)
+
         elementRobot.space { selectSpace(spaceName) }
+
+        elementRobot.layoutPreferences {
+            crawl()
+        }
+
+        elementRobot.roomList {
+            crawlTabs()
+        }
 
         elementRobot.withDeveloperMode {
             settings {
                 advancedSettings { crawlDeveloperOptions() }
             }
             roomList {
-                openRoom(getString(R.string.room_displayname_empty_room)) {
+                openRoom(getString(CommonStrings.room_displayname_empty_room)) {
                     val message = "Test view source"
                     postMessage(message)
                     openMessageMenu(message) {
@@ -167,7 +169,6 @@ class UiAllScreensSanityTest {
      * Testing multiple threads screens
      */
     private fun testThreadScreens() {
-        elementRobot.toggleLabFeature(LabFeature.THREAD_MESSAGES)
         elementRobot.newRoom {
             createNewRoom {
                 crawl()
@@ -181,6 +182,5 @@ class UiAllScreensSanityTest {
                 }
             }
         }
-        elementRobot.toggleLabFeature(LabFeature.THREAD_MESSAGES)
     }
 }

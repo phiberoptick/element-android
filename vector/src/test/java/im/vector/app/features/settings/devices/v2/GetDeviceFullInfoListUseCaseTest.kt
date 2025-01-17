@@ -1,21 +1,15 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.settings.devices.v2
 
+import im.vector.app.core.session.clientinfo.GetMatrixClientInfoUseCase
+import im.vector.app.core.session.clientinfo.MatrixClientInfoContent
+import im.vector.app.features.settings.devices.v2.details.extended.DeviceExtendedInfo
 import im.vector.app.features.settings.devices.v2.filter.DeviceManagerFilterType
 import im.vector.app.features.settings.devices.v2.filter.FilterDevicesUseCase
 import im.vector.app.features.settings.devices.v2.list.CheckIfSessionIsInactiveUseCase
@@ -55,6 +49,7 @@ class GetDeviceFullInfoListUseCaseTest {
     private val getCurrentSessionCrossSigningInfoUseCase = mockk<GetCurrentSessionCrossSigningInfoUseCase>()
     private val filterDevicesUseCase = mockk<FilterDevicesUseCase>()
     private val parseDeviceUserAgentUseCase = mockk<ParseDeviceUserAgentUseCase>()
+    private val getMatrixClientInfoUseCase = mockk<GetMatrixClientInfoUseCase>()
 
     private val getDeviceFullInfoListUseCase = GetDeviceFullInfoListUseCase(
             activeSessionHolder = fakeActiveSessionHolder.instance,
@@ -63,6 +58,7 @@ class GetDeviceFullInfoListUseCaseTest {
             getCurrentSessionCrossSigningInfoUseCase = getCurrentSessionCrossSigningInfoUseCase,
             filterDevicesUseCase = filterDevicesUseCase,
             parseDeviceUserAgentUseCase = parseDeviceUserAgentUseCase,
+            getMatrixClientInfoUseCase = getMatrixClientInfoUseCase,
     )
 
     @Before
@@ -108,13 +104,17 @@ class GetDeviceFullInfoListUseCaseTest {
         )
         val deviceInfoList = listOf(deviceInfo1, deviceInfo2, deviceInfo3)
         every { fakeFlowSession.liveMyDevicesInfo() } returns flowOf(deviceInfoList)
+        val matrixClientInfo1 = givenAMatrixClientInfo(A_DEVICE_ID_1)
+        val matrixClientInfo2 = givenAMatrixClientInfo(A_DEVICE_ID_2)
+        val matrixClientInfo3 = givenAMatrixClientInfo(A_DEVICE_ID_3)
         val expectedResult1 = DeviceFullInfo(
                 deviceInfo = deviceInfo1,
                 cryptoDeviceInfo = cryptoDeviceInfo1,
                 roomEncryptionTrustLevel = RoomEncryptionTrustLevel.Trusted,
                 isInactive = true,
                 isCurrentDevice = true,
-                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE)
+                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE),
+                matrixClientInfo = matrixClientInfo1,
         )
         val expectedResult2 = DeviceFullInfo(
                 deviceInfo = deviceInfo2,
@@ -122,7 +122,8 @@ class GetDeviceFullInfoListUseCaseTest {
                 roomEncryptionTrustLevel = RoomEncryptionTrustLevel.Trusted,
                 isInactive = false,
                 isCurrentDevice = false,
-                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE)
+                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE),
+                matrixClientInfo = matrixClientInfo2,
         )
         val expectedResult3 = DeviceFullInfo(
                 deviceInfo = deviceInfo3,
@@ -130,13 +131,15 @@ class GetDeviceFullInfoListUseCaseTest {
                 roomEncryptionTrustLevel = RoomEncryptionTrustLevel.Warning,
                 isInactive = false,
                 isCurrentDevice = false,
-                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE)
+                deviceExtendedInfo = DeviceExtendedInfo(DeviceType.MOBILE),
+                matrixClientInfo = matrixClientInfo3,
         )
         val expectedResult = listOf(expectedResult3, expectedResult2, expectedResult1)
-        every { filterDevicesUseCase.execute(any(), any()) } returns expectedResult
+        every { filterDevicesUseCase.execute(any(), any(), any()) } returns expectedResult
+        val filterType = DeviceManagerFilterType.ALL_SESSIONS
 
         // When
-        val result = getDeviceFullInfoListUseCase.execute(DeviceManagerFilterType.ALL_SESSIONS, excludeCurrentDevice = false)
+        val result = getDeviceFullInfoListUseCase.execute(filterType, excludeCurrentDevice = false)
                 .test(this)
 
         // Then
@@ -152,6 +155,10 @@ class GetDeviceFullInfoListUseCaseTest {
             checkIfSessionIsInactiveUseCase.execute(A_TIMESTAMP_1)
             checkIfSessionIsInactiveUseCase.execute(A_TIMESTAMP_2)
             checkIfSessionIsInactiveUseCase.execute(A_TIMESTAMP_3)
+            getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, A_DEVICE_ID_1)
+            getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, A_DEVICE_ID_2)
+            getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, A_DEVICE_ID_3)
+            filterDevicesUseCase.execute(currentSessionCrossSigningInfo, expectedResult, filterType, emptyList())
         }
     }
 
@@ -200,5 +207,11 @@ class GetDeviceFullInfoListUseCaseTest {
         )
 
         return deviceInfo
+    }
+
+    private fun givenAMatrixClientInfo(deviceId: String): MatrixClientInfoContent {
+        val matrixClientInfo = mockk<MatrixClientInfoContent>()
+        every { getMatrixClientInfoUseCase.execute(fakeActiveSessionHolder.fakeSession, deviceId) } returns matrixClientInfo
+        return matrixClientInfo
     }
 }

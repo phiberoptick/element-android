@@ -1,17 +1,8 @@
 /*
- * Copyright 2018 New Vector Ltd
+ * Copyright 2018-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.themes
@@ -24,11 +15,12 @@ import android.graphics.drawable.Drawable
 import android.util.TypedValue
 import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
+import androidx.annotation.StyleRes
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.preference.PreferenceManager
-import im.vector.app.R
+import im.vector.lib.ui.styles.R
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicReference
 
@@ -113,18 +105,15 @@ object ThemeUtils {
      */
     fun setApplicationTheme(context: Context, aTheme: String) {
         currentTheme.set(aTheme)
-        context.setTheme(
-                when (aTheme) {
-                    SYSTEM_THEME_VALUE -> if (isSystemDarkTheme(context.resources)) R.style.Theme_Vector_Dark else R.style.Theme_Vector_Light
-                    THEME_DARK_VALUE -> R.style.Theme_Vector_Dark
-                    THEME_BLACK_VALUE -> R.style.Theme_Vector_Black
-                    else -> R.style.Theme_Vector_Light
-                }
-        )
+        context.setTheme(themeToRes(context, aTheme))
 
         // Clear the cache
         mColorByAttr.clear()
     }
+
+    @StyleRes
+    fun getApplicationThemeRes(context: Context) =
+            themeToRes(context, currentTheme.get())
 
     /**
      * Set the activity theme according to the selected one. Default is Light, so if this is the current
@@ -200,4 +189,13 @@ object ThemeUtils {
         DrawableCompat.setTint(tinted, color)
         return tinted
     }
+
+    @StyleRes
+    private fun themeToRes(context: Context, theme: String): Int =
+            when (theme) {
+                SYSTEM_THEME_VALUE -> if (isSystemDarkTheme(context.resources)) R.style.Theme_Vector_Dark else R.style.Theme_Vector_Light
+                THEME_DARK_VALUE -> R.style.Theme_Vector_Dark
+                THEME_BLACK_VALUE -> R.style.Theme_Vector_Black
+                else -> R.style.Theme_Vector_Light
+            }
 }

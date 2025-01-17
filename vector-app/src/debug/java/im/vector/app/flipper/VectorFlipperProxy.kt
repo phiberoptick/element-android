@@ -1,22 +1,14 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.flipper
 
 import android.content.Context
+import android.os.Build
 import com.facebook.flipper.android.AndroidFlipperClient
 import com.facebook.flipper.android.utils.FlipperUtils
 import com.facebook.flipper.plugins.crashreporter.CrashReporterPlugin
@@ -31,6 +23,7 @@ import com.kgurgul.flipper.RealmDatabaseDriver
 import com.kgurgul.flipper.RealmDatabaseProvider
 import im.vector.app.core.debug.FlipperProxy
 import io.realm.RealmConfiguration
+import okhttp3.Interceptor
 import org.matrix.android.sdk.api.Matrix
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,29 +34,43 @@ class VectorFlipperProxy @Inject constructor(
 ) : FlipperProxy {
     private val networkFlipperPlugin = NetworkFlipperPlugin()
 
+    private val isEnabled: Boolean
+        get() {
+            // https://github.com/facebook/flipper/issues/3572
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                return false
+            }
+
+            return FlipperUtils.shouldEnableFlipper(context)
+        }
+
     override fun init(matrix: Matrix) {
+        if (!isEnabled) return
+
         SoLoader.init(context, false)
 
-        if (FlipperUtils.shouldEnableFlipper(context)) {
-            val client = AndroidFlipperClient.getInstance(context)
-            client.addPlugin(CrashReporterPlugin.getInstance())
-            client.addPlugin(SharedPreferencesFlipperPlugin(context))
-            client.addPlugin(InspectorFlipperPlugin(context, DescriptorMapping.withDefaults()))
-            client.addPlugin(networkFlipperPlugin)
-            client.addPlugin(
-                    DatabasesFlipperPlugin(
-                            RealmDatabaseDriver(
-                                    context = context,
-                                    realmDatabaseProvider = object : RealmDatabaseProvider {
-                                        override fun getRealmConfigurations(): List<RealmConfiguration> {
-                                            return matrix.debugService().getAllRealmConfigurations()
-                                        }
-                                    })
-                    )
-            )
-            client.start()
-        }
+        val client = AndroidFlipperClient.getInstance(context)
+        client.addPlugin(CrashReporterPlugin.getInstance())
+        client.addPlugin(SharedPreferencesFlipperPlugin(context))
+        client.addPlugin(InspectorFlipperPlugin(context, DescriptorMapping.withDefaults()))
+        client.addPlugin(networkFlipperPlugin)
+        client.addPlugin(
+                DatabasesFlipperPlugin(
+                        RealmDatabaseDriver(
+                                context = context,
+                                realmDatabaseProvider = object : RealmDatabaseProvider {
+                                    override fun getRealmConfigurations(): List<RealmConfiguration> {
+                                        return matrix.debugService().getAllRealmConfigurations()
+                                    }
+                                })
+                )
+        )
+        client.start()
     }
 
-    override fun networkInterceptor() = FlipperOkhttpInterceptor(networkFlipperPlugin)
+    override fun networkInterceptor(): Interceptor? {
+        if (!isEnabled) return null
+
+        return FlipperOkhttpInterceptor(networkFlipperPlugin)
+    }
 }

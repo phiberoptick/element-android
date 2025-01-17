@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2021 New Vector Ltd
+ * Copyright 2021-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.home.room.detail.composer
@@ -19,6 +10,7 @@ package im.vector.app.features.home.room.detail.composer
 import com.airbnb.mvrx.MavericksState
 import im.vector.app.features.home.room.detail.arguments.TimelineArgs
 import im.vector.app.features.home.room.detail.composer.voice.VoiceMessageRecorderView
+import im.vector.app.features.voicebroadcast.model.VoiceBroadcastState
 import org.matrix.android.sdk.api.extensions.orFalse
 import org.matrix.android.sdk.api.session.room.timeline.TimelineEvent
 import kotlin.random.Random
@@ -61,13 +53,16 @@ fun CanSendStatus.boolean(): Boolean {
 
 data class MessageComposerViewState(
         val roomId: String,
+        val isRoomError: Boolean = false,
         val canSendMessage: CanSendStatus = CanSendStatus.Allowed,
         val isSendButtonVisible: Boolean = false,
         val rootThreadEventId: String? = null,
         val startsThread: Boolean = false,
         val sendMode: SendMode = SendMode.Regular("", false),
         val voiceRecordingUiState: VoiceMessageRecorderView.RecordingUiState = VoiceMessageRecorderView.RecordingUiState.Idle,
+        val voiceBroadcastState: VoiceBroadcastState? = null,
         val text: CharSequence? = null,
+        val isFullScreen: Boolean = false,
 ) : MavericksState {
 
     val isVoiceRecording = when (voiceRecordingUiState) {
@@ -77,10 +72,16 @@ data class MessageComposerViewState(
         is VoiceMessageRecorderView.RecordingUiState.Recording -> true
     }
 
+    val isRecordingVoiceBroadcast = when (voiceBroadcastState) {
+        VoiceBroadcastState.STARTED,
+        VoiceBroadcastState.RESUMED -> true
+        else -> false
+    }
+
     val isVoiceMessageIdle = !isVoiceRecording
 
-    val isComposerVisible = canSendMessage.boolean() && !isVoiceRecording
-    val isVoiceMessageRecorderVisible = canSendMessage.boolean() && !isSendButtonVisible
+    val isComposerVisible = canSendMessage.boolean() && !isVoiceRecording && !isRoomError
+    val isVoiceMessageRecorderVisible = canSendMessage.boolean() && !isSendButtonVisible && !isRoomError
 
     constructor(args: TimelineArgs) : this(
             roomId = args.roomId,

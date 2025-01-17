@@ -1,17 +1,8 @@
 /*
- * Copyright 2019 New Vector Ltd
+ * Copyright 2019-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 package im.vector.app.core.platform
 
@@ -26,8 +17,10 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.CallSuper
 import androidx.annotation.FloatRange
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewbinding.ViewBinding
 import com.airbnb.mvrx.MavericksView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -43,6 +36,7 @@ import im.vector.app.features.analytics.plan.MobileScreen
 import io.github.hyuwah.draggableviewlib.Utils
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import reactivecircus.flowbinding.android.view.clicks
 import timber.log.Timber
 
@@ -199,12 +193,18 @@ abstract class VectorBaseBottomSheetDialogFragment<VB : ViewBinding> : BottomShe
      * ViewEvents
      * ========================================================================================== */
 
-    protected fun <T : VectorViewEvents> VectorViewModel<*, *, T>.observeViewEvents(observer: (T) -> Unit) {
-        viewEvents
-                .stream()
-                .onEach {
-                    observer(it)
-                }
-                .launchIn(viewLifecycleOwner.lifecycleScope)
+    protected fun <T : VectorViewEvents> VectorViewModel<*, *, T>.observeViewEvents(
+            observer: (T) -> Unit,
+    ) {
+        val tag = this@VectorBaseBottomSheetDialogFragment::class.simpleName.toString()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                viewEvents
+                        .stream(tag)
+                        .collect {
+                            observer(it)
+                        }
+            }
+        }
     }
 }

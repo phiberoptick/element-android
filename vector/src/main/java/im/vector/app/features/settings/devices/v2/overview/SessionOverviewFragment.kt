@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2022 New Vector Ltd
+ * Copyright 2022-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.settings.devices.v2.overview
@@ -19,16 +10,17 @@ package im.vector.app.features.settings.devices.v2.overview
 import android.app.Activity
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import im.vector.app.R
 import im.vector.app.core.date.VectorDateFormatter
@@ -38,12 +30,16 @@ import im.vector.app.core.platform.VectorMenuProvider
 import im.vector.app.core.resources.ColorProvider
 import im.vector.app.core.resources.DrawableProvider
 import im.vector.app.core.resources.StringProvider
+import im.vector.app.core.utils.openUrlInChromeCustomTab
 import im.vector.app.databinding.FragmentSessionOverviewBinding
 import im.vector.app.features.auth.ReAuthActivity
 import im.vector.app.features.crypto.recover.SetupMode
 import im.vector.app.features.settings.devices.v2.list.SessionInfoViewState
 import im.vector.app.features.settings.devices.v2.more.SessionLearnMoreBottomSheet
+import im.vector.app.features.settings.devices.v2.notification.NotificationsStatus
+import im.vector.app.features.settings.devices.v2.signout.BuildConfirmSignoutDialogUseCase
 import im.vector.app.features.workers.signout.SignOutUiWorker
+import im.vector.lib.strings.CommonStrings
 import org.matrix.android.sdk.api.auth.data.LoginFlowTypes
 import org.matrix.android.sdk.api.extensions.orFalse
 import org.matrix.android.sdk.api.session.crypto.model.RoomEncryptionTrustLevel
@@ -66,6 +62,8 @@ class SessionOverviewFragment :
     @Inject lateinit var colorProvider: ColorProvider
 
     @Inject lateinit var stringProvider: StringProvider
+
+    @Inject lateinit var buildConfirmSignoutDialogUseCase: BuildConfirmSignoutDialogUseCase
 
     private val viewModel: SessionOverviewViewModel by fragmentViewModel()
 
@@ -130,16 +128,19 @@ class SessionOverviewFragment :
         activity?.let { SignOutUiWorker(it).perform() }
     }
 
-    private fun confirmSignoutOtherSession() {
-        activity?.let {
-            MaterialAlertDialogBuilder(it)
-                    .setTitle(R.string.action_sign_out)
-                    .setMessage(R.string.action_sign_out_confirmation_simple)
-                    .setPositiveButton(R.string.action_sign_out) { _, _ ->
-                        signoutSession()
-                    }
-                    .setNegativeButton(R.string.action_cancel, null)
-                    .show()
+    private fun confirmSignoutOtherSession() = withState(viewModel) { state ->
+        if (state.externalAccountManagementUrl != null) {
+            // Manage in external account manager
+            openUrlInChromeCustomTab(
+                    requireContext(),
+                    null,
+                    state.externalAccountManagementUrl.removeSuffix("/") + "?action=session_end&device_id=${state.deviceId}"
+            )
+        } else {
+            activity?.let {
+                buildConfirmSignoutDialogUseCase.execute(it, this::signoutSession)
+                        .show()
+            }
         }
     }
 
@@ -158,14 +159,32 @@ class SessionOverviewFragment :
 
     override fun getMenuRes() = R.menu.menu_session_overview
 
+    override fun handlePrepareMenu(menu: Menu) {
+        withState(viewModel) { state ->
+            menu.findItem(R.id.sessionOverviewToggleIpAddress).title = if (state.isShowingIpAddress) {
+                getString(CommonStrings.device_manager_other_sessions_hide_ip_address)
+            } else {
+                getString(CommonStrings.device_manager_other_sessions_show_ip_address)
+            }
+        }
+    }
+
     override fun handleMenuItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.sessionOverviewRename -> {
                 goToRenameSession()
                 true
             }
+            R.id.sessionOverviewToggleIpAddress -> {
+                toggleIpAddressVisibility()
+                true
+            }
             else -> false
         }
+    }
+
+    private fun toggleIpAddressVisibility() {
+        viewModel.handle(SessionOverviewAction.ToggleIpAddressVisibility)
     }
 
     private fun goToRenameSession() = withState(viewModel) { state ->
@@ -177,12 +196,16 @@ class SessionOverviewFragment :
         updateEntryDetails(state.deviceId)
         updateSessionInfo(state)
         updateLoading(state.isLoading)
+        updatePushNotificationToggle(state.deviceId, state.notificationsStatus)
     }
 
     private fun updateToolbar(viewState: SessionOverviewViewState) {
         if (viewState.deviceInfo is Success) {
-            val titleResId =
-                    if (viewState.deviceInfo.invoke().isCurrentDevice) R.string.device_manager_current_session_title else R.string.device_manager_session_title
+            val titleResId = if (viewState.deviceInfo.invoke().isCurrentDevice) {
+                CommonStrings.device_manager_current_session_title
+            } else {
+                CommonStrings.device_manager_session_title
+            }
             (activity as? AppCompatActivity)
                     ?.supportActionBar
                     ?.setTitle(titleResId)
@@ -205,15 +228,32 @@ class SessionOverviewFragment :
                     deviceFullInfo = deviceInfo,
                     isVerifyButtonVisible = isCurrentSession || viewState.isCurrentSessionTrusted,
                     isDetailsButtonVisible = false,
-                    isLearnMoreLinkVisible = true,
-                    isLastSeenDetailsVisible = true,
+                    isLearnMoreLinkVisible = deviceInfo.roomEncryptionTrustLevel != RoomEncryptionTrustLevel.Default,
+                    isLastActivityVisible = !isCurrentSession,
+                    isShowingIpAddress = viewState.isShowingIpAddress,
             )
             views.sessionOverviewInfo.render(infoViewState, dateFormatter, drawableProvider, colorProvider, stringProvider)
             views.sessionOverviewInfo.onLearnMoreClickListener = {
-                showLearnMoreInfoVerificationStatus(deviceInfo.roomEncryptionTrustLevel == RoomEncryptionTrustLevel.Trusted)
+                showLearnMoreInfoVerificationStatus(deviceInfo.roomEncryptionTrustLevel)
             }
         } else {
             views.sessionOverviewInfo.isVisible = false
+        }
+    }
+
+    private fun updatePushNotificationToggle(deviceId: String, notificationsStatus: NotificationsStatus) {
+        views.sessionOverviewPushNotifications.isGone = notificationsStatus == NotificationsStatus.NOT_SUPPORTED
+        when (notificationsStatus) {
+            NotificationsStatus.ENABLED, NotificationsStatus.DISABLED -> {
+                views.sessionOverviewPushNotifications.setOnCheckedChangeListener(null)
+                views.sessionOverviewPushNotifications.setChecked(notificationsStatus == NotificationsStatus.ENABLED)
+                views.sessionOverviewPushNotifications.post {
+                    views.sessionOverviewPushNotifications.setOnCheckedChangeListener { _, isChecked ->
+                        viewModel.handle(SessionOverviewAction.TogglePushNotifications(deviceId, isChecked))
+                    }
+                }
+            }
+            else -> Unit
         }
     }
 
@@ -252,27 +292,34 @@ class SessionOverviewFragment :
                 requireContext(),
                 reAuthReq.registrationFlowResponse,
                 reAuthReq.lastErrorCode,
-                getString(R.string.devices_delete_dialog_title)
+                getString(CommonStrings.devices_delete_dialog_title)
         ).let { intent ->
             reAuthActivityResultLauncher.launch(intent)
         }
     }
 
-    private fun showLearnMoreInfoVerificationStatus(isVerified: Boolean) {
-        val titleResId = if (isVerified) {
-            R.string.device_manager_verification_status_verified
-        } else {
-            R.string.device_manager_verification_status_unverified
+    private fun showLearnMoreInfoVerificationStatus(roomEncryptionTrustLevel: RoomEncryptionTrustLevel?) {
+        val args = when (roomEncryptionTrustLevel) {
+            null -> {
+                // encryption not supported
+                SessionLearnMoreBottomSheet.Args(
+                        title = getString(CommonStrings.device_manager_verification_status_unverified),
+                        description = getString(CommonStrings.device_manager_learn_more_sessions_encryption_not_supported),
+                )
+            }
+            RoomEncryptionTrustLevel.Trusted -> {
+                SessionLearnMoreBottomSheet.Args(
+                        title = getString(CommonStrings.device_manager_verification_status_verified),
+                        description = getString(CommonStrings.device_manager_learn_more_sessions_verified_description),
+                )
+            }
+            else -> {
+                SessionLearnMoreBottomSheet.Args(
+                        title = getString(CommonStrings.device_manager_verification_status_unverified),
+                        description = getString(CommonStrings.device_manager_learn_more_sessions_unverified),
+                )
+            }
         }
-        val descriptionResId = if (isVerified) {
-            R.string.device_manager_learn_more_sessions_verified
-        } else {
-            R.string.device_manager_learn_more_sessions_unverified
-        }
-        val args = SessionLearnMoreBottomSheet.Args(
-                title = getString(titleResId),
-                description = getString(descriptionResId),
-        )
         SessionLearnMoreBottomSheet.show(childFragmentManager, args)
     }
 }

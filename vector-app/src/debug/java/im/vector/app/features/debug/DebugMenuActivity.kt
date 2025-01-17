@@ -1,17 +1,8 @@
 /*
- * Copyright 2019 New Vector Ltd
+ * Copyright 2019-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.features.debug
@@ -26,21 +17,21 @@ import androidx.core.app.Person
 import androidx.core.content.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
 import im.vector.app.R
-import im.vector.app.core.di.ActiveSessionHolder
 import im.vector.app.core.extensions.registerStartForActivityResult
 import im.vector.app.core.platform.VectorBaseActivity
-import im.vector.app.core.time.Clock
 import im.vector.app.core.utils.PERMISSIONS_FOR_TAKING_PHOTO
 import im.vector.app.core.utils.checkPermissions
 import im.vector.app.core.utils.registerForPermissionsResult
 import im.vector.app.core.utils.toast
 import im.vector.app.features.debug.analytics.DebugAnalyticsActivity
 import im.vector.app.features.debug.features.DebugFeaturesSettingsActivity
+import im.vector.app.features.debug.jitsi.DebugJitsiActivity
 import im.vector.app.features.debug.leak.DebugMemoryLeaksActivity
 import im.vector.app.features.debug.sas.DebugSasEmojiActivity
 import im.vector.app.features.debug.settings.DebugPrivateSettingsActivity
 import im.vector.app.features.qrcode.QrCodeScannerActivity
 import im.vector.application.databinding.ActivityDebugMenuBinding
+import im.vector.lib.core.utils.timer.Clock
 import im.vector.lib.ui.styles.debug.DebugMaterialThemeDarkDefaultActivity
 import im.vector.lib.ui.styles.debug.DebugMaterialThemeDarkTestActivity
 import im.vector.lib.ui.styles.debug.DebugMaterialThemeDarkVectorActivity
@@ -59,11 +50,7 @@ class DebugMenuActivity : VectorBaseActivity<ActivityDebugMenuBinding>() {
 
     override fun getBinding() = ActivityDebugMenuBinding.inflate(layoutInflater)
 
-    @Inject
-    lateinit var activeSessionHolder: ActiveSessionHolder
-
-    @Inject
-    lateinit var clock: Clock
+    @Inject lateinit var clock: Clock
 
     private lateinit var buffer: ByteArray
 
@@ -126,6 +113,9 @@ class DebugMenuActivity : VectorBaseActivity<ActivityDebugMenuBinding>() {
         views.debugPermission.setOnClickListener {
             startActivity(Intent(this, DebugPermissionActivity::class.java))
         }
+        views.debugJitsi.setOnClickListener {
+            startActivity(Intent(this, DebugJitsiActivity::class.java))
+        }
     }
 
     private fun openPrivateSettings() {
@@ -180,7 +170,7 @@ class DebugMenuActivity : VectorBaseActivity<ActivityDebugMenuBinding>() {
                 .setContentText("Content")
                 // No effect because it's a group summary notif
                 .setNumber(33)
-                .setSmallIcon(R.drawable.ic_status_bar)
+                .setSmallIcon(R.drawable.ic_notification)
                 // This provocate the badge issue: no badge for group notification
                 .setGroup("GroupKey")
                 .setGroupSummary(true)
@@ -213,7 +203,7 @@ class DebugMenuActivity : VectorBaseActivity<ActivityDebugMenuBinding>() {
                         // For shortcut on long press on launcher icon
                         .setBadgeIconType(NotificationCompat.BADGE_ICON_NONE)
                         .setStyle(messagingStyle1)
-                        .setSmallIcon(R.drawable.ic_status_bar)
+                        .setSmallIcon(R.drawable.ic_notification)
                         .setGroup("GroupKey")
                         .build()
         )
@@ -225,7 +215,7 @@ class DebugMenuActivity : VectorBaseActivity<ActivityDebugMenuBinding>() {
                         .setContentTitle("Title 2")
                         .setContentText("Content 2")
                         .setStyle(messagingStyle2)
-                        .setSmallIcon(R.drawable.ic_status_bar)
+                        .setSmallIcon(R.drawable.ic_notification)
                         .setGroup("GroupKey")
                         .build()
         )

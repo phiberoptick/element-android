@@ -1,17 +1,8 @@
 /*
- * Copyright (c) 2021 New Vector Ltd
+ * Copyright 2021-2024 New Vector Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+ * Please see LICENSE files in the repository root for full details.
  */
 
 package im.vector.app.ui.robot
@@ -21,29 +12,42 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions
 import androidx.test.espresso.contrib.RecyclerViewActions
-import androidx.test.espresso.matcher.ViewMatchers
+import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import com.adevinta.android.barista.assertion.BaristaVisibilityAssertions
 import com.adevinta.android.barista.interaction.BaristaClickInteractions.clickOn
 import im.vector.app.R
+import im.vector.app.espresso.tools.selectTabAtPosition
 import im.vector.app.espresso.tools.waitUntilActivityVisible
 import im.vector.app.espresso.tools.waitUntilDialogVisible
+import im.vector.app.espresso.tools.waitUntilViewVisible
+import im.vector.app.features.home.HomeActivity
+import im.vector.app.features.home.room.list.home.header.HomeRoomFilter
 import im.vector.app.features.roomdirectory.RoomDirectoryActivity
 import im.vector.app.ui.robot.settings.labs.LabFeaturesPreferences
+import im.vector.app.waitForView
+import im.vector.lib.strings.CommonStrings
 
 class RoomListRobot(private val labsPreferences: LabFeaturesPreferences) {
 
     fun openRoom(roomName: String, block: RoomDetailRobot.() -> Unit) {
-        clickOn(roomName)
+        onView(withId(R.id.roomListView))
+                .perform(
+                        RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
+                                hasDescendant(withText(roomName)),
+                                ViewActions.click()
+                        )
+                )
         block(RoomDetailRobot())
         pressBack()
     }
 
     fun verifyCreatedRoom() {
-        onView(ViewMatchers.withId(R.id.roomListView))
+        onView(withId(R.id.roomListView))
                 .perform(
                         RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-                                ViewMatchers.hasDescendant(withText(R.string.room_displayname_empty_room)),
+                                hasDescendant(withText(CommonStrings.room_displayname_empty_room)),
                                 ViewActions.longClick()
                         )
                 )
@@ -53,7 +57,7 @@ class RoomListRobot(private val labsPreferences: LabFeaturesPreferences) {
     fun newRoom(block: NewRoomRobot.() -> Unit) {
         if (labsPreferences.isNewAppLayoutEnabled) {
             clickOn(R.id.newLayoutCreateChatButton)
-            waitUntilDialogVisible(ViewMatchers.withId(R.id.create_room))
+            waitUntilDialogVisible(withId(R.id.create_room))
             clickOn(R.id.create_room)
         } else {
             clickOn(R.id.createGroupRoomButton)
@@ -66,5 +70,20 @@ class RoomListRobot(private val labsPreferences: LabFeaturesPreferences) {
         if (!newRoomRobot.createdRoom) {
             pressBack()
         }
+    }
+
+    fun crawlTabs() {
+        waitUntilActivityVisible<HomeActivity> {
+            waitUntilViewVisible(withId(R.id.roomListContainer))
+        }
+
+        selectFilterTab(HomeRoomFilter.UNREADS)
+        waitForView(withId(R.id.emptyTitleView))
+        selectFilterTab(HomeRoomFilter.ALL)
+        waitForView(withId(R.id.roomNameView))
+    }
+
+    fun selectFilterTab(filter: HomeRoomFilter) {
+        onView(withId(R.id.home_filter_tabs_tabs)).perform(selectTabAtPosition(filter.ordinal))
     }
 }
